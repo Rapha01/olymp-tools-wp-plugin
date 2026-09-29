@@ -1,0 +1,25 @@
+/* Olymp Tools — shared admin styles */
+
+.olymp-tools-save-status {
+    margin-left: 10px;
+    font-weight: 600;
+}
+.olymp-tools-save-status.is-success { color: #007017; }
+.olymp-tools-save-status.is-error   { color: #d63638; }
+
+.olymp-tools-greviews-current {
+    font-size: 15px;
+}
+
+.olymp-tools-vloc-preview {
+    font-size: 15px;
+}
+
+.olymp-tools-shortcodes code {
+    background: #f0f0f1;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+.olymp-tools-shortcodes td {
+    vertical-align: middle;
+}

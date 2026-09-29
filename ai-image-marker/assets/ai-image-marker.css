@@ -1,0 +1,50 @@
+/**
+ * Olymp Tools — AI-Image Marker badge.
+ *
+ * Structural styles only: colors and background come from the settings and are
+ * applied inline on the badge element (override via the Custom CSS setting
+ * with !important). Positioning (left/top/transform) is set by the JS engine;
+ * the admin preview positions via corner offsets instead.
+ */
+
+.olymp-aiimgmark-host {
+    position: relative;
+}
+
+.olymp-aiimgmark-badge {
+    position: absolute;
+    z-index: 99;
+    box-sizing: border-box;
+    display: inline-block;
+    max-width: calc(100% - 12px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    border-radius: 3px;
+    text-decoration: none;
+}
+
+a.olymp-aiimgmark-badge:hover,
+a.olymp-aiimgmark-badge:focus {
+    text-decoration: underline;
+}
+
+.olymp-aiimgmark--small  { font-size: 10px; padding: 3px 6px; }
+.olymp-aiimgmark--medium { font-size: 12px; padding: 4px 8px; }
+.olymp-aiimgmark--large  { font-size: 14px; padding: 6px 10px; }
+
+/* Custom image badge: the image defines the look, no chrome from us. */
+.olymp-aiimgmark--image {
+    padding: 0;
+    background: none;
+    border-radius: 0;
+}
+.olymp-aiimgmark--image img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
