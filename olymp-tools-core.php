@@ -8,7 +8,8 @@
  * "Olymp Tools" admin menu — one submenu per tool.
  *
  * To add a new tool:
- *   1. Create a class implementing Olymp_Tool.
+ *   1. Create a class implementing Olymp_Tool in its own folder under tools/
+ *      (tools/your-tool/your-tool.php, plus page template and assets/ there).
  *   2. require_once it and call $olymp_tools->register( new Your_Tool() ) in
  *      olymp_tools_init() at the bottom of this file.
  * It gets its own submenu automatically — nothing else needs to change.
@@ -236,10 +237,10 @@ class Olymp_Tools {
 function olymp_tools_init() {
     global $olymp_tools;
 
-    require_once __DIR__ . '/google-reviews/google-reviews.php';
-    require_once __DIR__ . '/visitor-location/visitor-location.php';
-    require_once __DIR__ . '/ai-image-marker/ai-image-marker.php';
-    require_once __DIR__ . '/google-consent-mode/google-consent-mode.php';
+    require_once __DIR__ . '/tools/google-reviews/google-reviews.php';
+    require_once __DIR__ . '/tools/visitor-location/visitor-location.php';
+    require_once __DIR__ . '/tools/ai-image-marker/ai-image-marker.php';
+    require_once __DIR__ . '/tools/google-consent-mode/google-consent-mode.php';
 
     $olymp_tools = new Olymp_Tools();
     $olymp_tools->register( new Olymp_Tool_Google_Reviews() );
