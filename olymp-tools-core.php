@@ -46,10 +46,14 @@ interface Olymp_Tool {
     /**
      * Persist settings posted from this tool's form.
      *
-     * @param array $post The raw $_POST payload (the tool sanitizes its own fields).
+     * Called from the shared AJAX endpoint after its nonce and capability check.
+     * A tool that reads form fields re-checks the nonce itself
+     * (check_ajax_referer( Olymp_Tools::NONCE, 'nonce' )) and reads only its
+     * own $_POST keys, sanitizing each one.
+     *
      * @return array Response data passed to wp_send_json_success().
      */
-    public function save( $post );
+    public function save();
 }
 
 /**
@@ -211,7 +215,7 @@ class Olymp_Tools {
         check_ajax_referer( self::NONCE, 'nonce' );
 
         if ( ! current_user_can( self::CAPABILITY ) ) {
-            wp_send_json_error( array( 'message' => __( 'Unauthorized', 'olymp-tools' ) ) );
+            wp_send_json_error( array( 'message' => __( 'Unauthorized', 'olymp-tools' ) ), 403 );
         }
 
         $id = isset( $_POST['tool'] ) ? sanitize_key( wp_unslash( $_POST['tool'] ) ) : '';
@@ -220,9 +224,8 @@ class Olymp_Tools {
             wp_send_json_error( array( 'message' => __( 'Unknown tool.', 'olymp-tools' ) ) );
         }
 
-        // The addressed tool sanitizes its own fields.
-        $result = $this->tools[ $id ]->save( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce checked above; sanitized inside save().
-        wp_send_json_success( $result );
+        // The tool reads and sanitizes its own fields (behind its own nonce check).
+        wp_send_json_success( $this->tools[ $id ]->save() );
     }
 }
 
@@ -240,13 +243,11 @@ function olymp_tools_init() {
     require_once __DIR__ . '/tools/google-reviews/google-reviews.php';
     require_once __DIR__ . '/tools/visitor-location/visitor-location.php';
     require_once __DIR__ . '/tools/ai-image-marker/ai-image-marker.php';
-    require_once __DIR__ . '/tools/google-consent-mode/google-consent-mode.php';
 
     $olymp_tools = new Olymp_Tools();
     $olymp_tools->register( new Olymp_Tool_Google_Reviews() );
     $olymp_tools->register( new Olymp_Tool_Visitor_Location() );
     $olymp_tools->register( new Olymp_Tool_AI_Image_Marker() );
-    $olymp_tools->register( new Olymp_Tool_Google_Consent_Mode() );
     $olymp_tools->init();
 
     return $olymp_tools;

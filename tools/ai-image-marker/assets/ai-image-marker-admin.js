@@ -68,13 +68,6 @@
         badge.style[pos.indexOf('left') !== -1 ? 'left' : 'right'] = off;
 
         $box.append(badge);
-
-        // Apply the Custom CSS field to the preview too.
-        $('#olymp-aiimgmark-preview-css').remove();
-        var css = field('custom_css').val();
-        if (css) {
-            $('<style id="olymp-aiimgmark-preview-css">').text(css).appendTo(document.head);
-        }
     }
 
     $(function () {

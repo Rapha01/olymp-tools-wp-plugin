@@ -25,7 +25,7 @@
  * value would be wrong for everyone but the first visitor.
  *
  * The database is fetched lazily: the first lookup that finds it missing or
- * stale schedules a one-off WP-Cron event that downloads it in the background.
+ * stale downloads it after its own response has been sent (see handle_lookup()).
  * The triggering visitor simply sees the `default` until the DB is ready; once
  * present, a stale DB keeps serving real data while the refresh runs (atomic
  * swap), so only the very first visitor ever falls back to the default.
@@ -54,10 +54,13 @@ class Olymp_Tool_Visitor_Location implements Olymp_Tool {
     /** How long the download lock/back-off is held once a download starts. */
     const DOWNLOAD_LOCK_TTL = 15 * MINUTE_IN_SECONDS;
 
+    /** Nonce action of the admin page's "preview another IP" form. */
+    const PREVIEW_NONCE = 'olymp_tools_vloc_preview';
+
     /** Public AJAX action + front-end script handle + asset cache-buster. */
     const AJAX_ACTION   = 'olymp_visitor_location';
     const SCRIPT_HANDLE = 'olymp-visitor-location';
-    const VERSION       = '1.0.1';
+    const VERSION       = '1.0.2';
 
     /**
      * Fields a shortcode may request (also the JSON keys returned to the client).
@@ -112,16 +115,19 @@ class Olymp_Tool_Visitor_Location implements Olymp_Tool {
         $stale       = $this->is_db_stale();
         $refresh_days = (int) round( self::REFRESH_INTERVAL / DAY_IN_SECONDS );
 
-        // Live preview: the admin's own detected IP, or an explicit test IP.
+        // Live preview: the admin's own detected IP, or a test IP submitted via
+        // the page's nonce-protected preview form.
         $preview_ip = $this->get_client_ip();
-        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only admin preview, capability-checked above.
-        if ( isset( $_GET['test_ip'] ) ) {
+        $test_ip    = '';
+        if ( isset( $_GET['test_ip'], $_GET['_wpnonce'] )
+            && wp_verify_nonce( sanitize_key( wp_unslash( $_GET['_wpnonce'] ) ), self::PREVIEW_NONCE ) ) {
             $candidate = sanitize_text_field( wp_unslash( $_GET['test_ip'] ) );
             if ( filter_var( $candidate, FILTER_VALIDATE_IP ) ) {
+                $test_ip    = $candidate;
                 $preview_ip = $candidate;
             }
         }
-        // phpcs:enable WordPress.Security.NonceVerification.Recommended
+        $page_slug = Olymp_Tools::MENU_SLUG . '-' . $this->get_id();
         $preview = ( $db_exists && '' !== $preview_ip && $this->is_public_ip( $preview_ip ) )
             ? $this->lookup( $preview_ip )
             : null;
@@ -139,7 +145,7 @@ class Olymp_Tool_Visitor_Location implements Olymp_Tool {
      * few seconds but gets a definitive result — and works on hosts where WP-Cron
      * or loopback requests are blocked.
      */
-    public function save( $post ) {
+    public function save() {
         // Clear any back-off lock so a manual refresh always proceeds immediately.
         delete_transient( self::FLAG_DOWNLOADING );
 
@@ -231,49 +237,60 @@ class Olymp_Tool_Visitor_Location implements Olymp_Tool {
 
     /**
      * Public endpoint. Resolves the location of the CALLER's IP only, so it cannot
-     * be used as an open geolocation proxy. No nonce: it is a read-only, self-only
-     * lookup, and requiring one would break on long-cached pages where the printed
-     * nonce has expired.
-     *
-     * Exception: a logged-in admin may pass ?test_ip= to force a specific address —
-     * to exercise the lookup (and the lazy DB download it triggers) from a local
-     * environment, where the real client IP is private and would short-circuit
-     * below. The override is capability-gated, so anonymous callers still cannot
-     * geolocate an arbitrary IP.
+     * be used as an open geolocation proxy. It reads no request input at all, so
+     * there is nothing a nonce would protect — and a nonce would break on
+     * long-cached pages where the printed nonce has expired.
      */
     public function handle_lookup() {
         $ip = $this->get_client_ip();
-
-        // Dev/test override — admins only (see method docblock).
-        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- capability-checked, read-only; the only side effect is an idempotent background DB download.
-        if ( isset( $_GET['test_ip'] ) && current_user_can( 'manage_options' ) ) {
-            $candidate = sanitize_text_field( wp_unslash( $_GET['test_ip'] ) );
-            if ( filter_var( $candidate, FILTER_VALIDATE_IP ) ) {
-                $ip = $candidate;
-            }
-        }
-        // phpcs:enable WordPress.Security.NonceVerification.Recommended
 
         // Local/dev/invalid IP → empty fields; the client just keeps its defaults.
         $fields = ( '' === $ip || ! $this->is_public_ip( $ip ) )
             ? $this->empty_fields()
             : $this->lookup( $ip );
 
-        // Decide before we detach whether the DB needs (re)downloading.
-        $needs_download = ! file_exists( $this->db_path() ) || $this->is_db_stale();
-
-        // Send the location to the visitor and close the connection — they never
-        // wait for the download. Then, if needed, download the DB in the background
-        // of this same request: the visitor's own request drives it, so no WP-Cron
-        // or server-to-self loopback is required. Only the first visitor to find
-        // the DB missing/stale (and win the single-flight lock) actually downloads.
-        $this->send_json_and_close( array( 'success' => true, 'data' => $fields ) );
-
-        if ( $needs_download ) {
-            $this->run_locked_download();
+        // If the DB is missing/stale, download it after the response is sent:
+        // the visitor's own request drives it, so no WP-Cron or server-to-self
+        // loopback is required. Only the first visitor to find the DB missing/stale
+        // (and win the single-flight lock) actually downloads.
+        if ( ! file_exists( $this->db_path() ) || $this->is_db_stale() ) {
+            add_action( 'shutdown', array( $this, 'download_after_response' ), 0 );
         }
 
-        exit;
+        wp_send_json_success( $fields );
+    }
+
+    /**
+     * 'shutdown' callback queued by handle_lookup(): runs once wp_send_json_success()
+     * has output the response. Detaches from the client first — so the visitor
+     * never waits for the download — then downloads the database.
+     *
+     * Detaching uses fastcgi_finish_request() / litespeed_finish_request(). Where
+     * neither exists (e.g. php-cgi), the still-buffered response is flushed with
+     * an explicit Content-Length, so the browser treats it as complete right away
+     * while the download runs inline. Either way the lookup is an asynchronous
+     * fetch(), so the visitor's page is never blocked.
+     */
+    public function download_after_response() {
+        if ( function_exists( 'fastcgi_finish_request' ) ) {
+            fastcgi_finish_request();
+        } elseif ( function_exists( 'litespeed_finish_request' ) ) {
+            litespeed_finish_request();
+        } else {
+            while ( ob_get_level() > 1 ) {
+                ob_end_flush();
+            }
+            if ( 1 === ob_get_level() && ! headers_sent() && ! ini_get( 'zlib.output_compression' ) ) {
+                header( 'Content-Length: ' . (int) ob_get_length() );
+                header( 'Connection: close' );
+            }
+            while ( ob_get_level() > 0 ) {
+                ob_end_flush();
+            }
+            flush();
+        }
+
+        $this->run_locked_download();
     }
 
     /**
@@ -488,42 +505,6 @@ class Olymp_Tool_Visitor_Location implements Olymp_Tool {
         return $this->download_database();
     }
 
-    /**
-     * Emit a JSON response and detach from the client, so the request can keep
-     * running (to download the database) without the visitor waiting.
-     *
-     * Prefers fastcgi_finish_request() / litespeed_finish_request(); otherwise it
-     * flushes with an explicit Content-Length so the browser treats the (small)
-     * body as complete immediately while any follow-up work runs inline — the
-     * visitor's page is never blocked either way.
-     *
-     * @param array $payload Response data, echoed as JSON.
-     */
-    private function send_json_and_close( array $payload ) {
-        $json = wp_json_encode( $payload );
-
-        if ( ! headers_sent() ) {
-            header( 'Content-Type: application/json; charset=' . get_option( 'blog_charset' ) );
-            header( 'Content-Length: ' . strlen( $json ) );
-            header( 'Connection: close' );
-        }
-
-        echo $json; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON response body.
-
-        if ( function_exists( 'fastcgi_finish_request' ) ) {
-            fastcgi_finish_request();
-        } elseif ( function_exists( 'litespeed_finish_request' ) ) {
-            litespeed_finish_request();
-        } else {
-            // Can't detach: flush what we have. The Content-Length lets the browser
-            // treat the body as complete immediately; any follow-up work runs inline.
-            while ( ob_get_level() > 0 ) {
-                ob_end_flush();
-            }
-            flush();
-        }
-    }
-
     private function is_db_stale() {
         $updated = (int) get_option( self::OPT_LAST_UPDATED, 0 );
         return ( time() - $updated ) > self::REFRESH_INTERVAL;
@@ -532,7 +513,7 @@ class Olymp_Tool_Visitor_Location implements Olymp_Tool {
     /**
      * Download the current DB-IP Lite City database. Reached via run_locked_download()
      * from both the admin "Refresh" button (synchronous) and the first-visitor lookup
-     * (after its response is flushed). Downloads to a temp file, decompresses and
+     * (after its response has been sent). Downloads to a temp file, decompresses and
      * verifies it, then atomically swaps it into place — a failure mid-way never
      * corrupts the live DB (the old one keeps serving).
      *
@@ -544,8 +525,6 @@ class Olymp_Tool_Visitor_Location implements Olymp_Tool {
         if ( ! function_exists( 'download_url' ) ) {
             require_once ABSPATH . 'wp-admin/includes/file.php';
         }
-        // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, Squiz.PHP.DiscouragedFunctions.Discouraged -- the ~62 MB download must not hit max_execution_time; some hosts disable set_time_limit, so ignore failure.
-        @set_time_limit( 0 );
 
         $dir   = $this->ensure_storage_dir();
         $final = $this->db_path();

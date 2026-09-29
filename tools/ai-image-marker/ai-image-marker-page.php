@@ -219,14 +219,10 @@ $olymp_aiimgmark_sample_src = 'data:image/svg+xml;base64,' . base64_encode( $oly
                     </td>
                 </tr>
                 <tr>
-                    <th scope="row">
-                        <label for="olymp-aiimgmark-css"><?php esc_html_e( 'Custom CSS', 'olymp-tools' ); ?></label>
-                    </th>
+                    <th scope="row"><?php esc_html_e( 'Further styling', 'olymp-tools' ); ?></th>
                     <td>
-                        <textarea id="olymp-aiimgmark-css" name="custom_css" class="large-text code" rows="4"
-                                  placeholder=".olymp-aiimgmark-badge { border-radius: 999px; }"><?php echo esc_textarea( $settings['custom_css'] ); ?></textarea>
                         <p class="description">
-                            <?php esc_html_e( 'Appended after the badge styles; target .olymp-aiimgmark-badge. Text and background color are set inline from the options above — use !important to override them here.', 'olymp-tools' ); ?>
+                            <?php esc_html_e( 'Need more than the options above? Add CSS for .olymp-aiimgmark-badge under "Additional CSS" in the Customizer or Site Editor. Text and background color are set inline from the options above — use !important to override them there.', 'olymp-tools' ); ?>
                         </p>
                     </td>
                 </tr>

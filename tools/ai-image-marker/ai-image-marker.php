@@ -49,13 +49,14 @@ class Olymp_Tool_AI_Image_Marker implements Olymp_Tool {
 
     /** Handle + cache-busting version for this tool's own JS/CSS assets. */
     const HANDLE  = 'olymp-tools-aiimgmark';
-    const VERSION = '1.0.0';
+    const VERSION = '1.0.1';
 
     /** Media list table column id / filter + notice query args. */
     const COLUMN_ID      = 'olymp_tools_aiimgmark';
     const FILTER_ARG     = 'olymp_tools_aiimgmark_filter';
     const NOTICE_ACTION  = 'olymp_tools_aiimgmark_bulk';
     const NOTICE_COUNT   = 'olymp_tools_aiimgmark_count';
+    const NOTICE_NONCE   = 'olymp_tools_aiimgmark_nonce';
 
     /** Bulk action ids in the Media Library list view. */
     const BULK_MARK   = 'olymp_tools_aiimgmark_mark';
@@ -145,39 +146,53 @@ class Olymp_Tool_AI_Image_Marker implements Olymp_Tool {
      * Persist the tool's settings (shared olymp_tools_save AJAX endpoint).
      * Checkboxes are absent from the payload when unchecked.
      */
-    public function save( $post ) {
+    public function save() {
+        check_ajax_referer( Olymp_Tools::NONCE, 'nonce' );
+
+        // Checkboxes: present with value "1" when checked, absent otherwise.
+        $auto_flag  = isset( $_POST['auto_flag'] ) && '1' === sanitize_key( wp_unslash( $_POST['auto_flag'] ) );
+        $enabled    = isset( $_POST['enabled'] ) && '1' === sanitize_key( wp_unslash( $_POST['enabled'] ) );
+        $alt_enable = isset( $_POST['alt_suffix_enable'] ) && '1' === sanitize_key( wp_unslash( $_POST['alt_suffix_enable'] ) );
+
         // Flag management.
-        $auto_flag = isset( $post['auto_flag'] ) && '1' === $post['auto_flag'];
         update_option( self::OPT_AUTO_FLAG, $auto_flag );
 
         // Front-end labelling settings.
         $defaults = self::default_settings();
 
-        $position   = isset( $post['position'] ) ? sanitize_key( wp_unslash( $post['position'] ) ) : '';
-        $size       = isset( $post['size'] ) ? sanitize_key( wp_unslash( $post['size'] ) ) : '';
-        $text_color = isset( $post['text_color'] ) ? sanitize_hex_color( wp_unslash( $post['text_color'] ) ) : '';
-        $bg_color   = isset( $post['bg_color'] ) ? sanitize_hex_color( wp_unslash( $post['bg_color'] ) ) : '';
-        $img_width  = isset( $post['image_width'] ) ? absint( $post['image_width'] ) : 0;
+        $badge_type  = isset( $_POST['badge_type'] ) ? sanitize_key( wp_unslash( $_POST['badge_type'] ) ) : '';
+        $position    = isset( $_POST['position'] ) ? sanitize_key( wp_unslash( $_POST['position'] ) ) : '';
+        $size        = isset( $_POST['size'] ) ? sanitize_key( wp_unslash( $_POST['size'] ) ) : '';
+        $text        = isset( $_POST['text'] ) ? sanitize_text_field( wp_unslash( $_POST['text'] ) ) : $defaults['text'];
+        $tooltip     = isset( $_POST['tooltip'] ) ? sanitize_text_field( wp_unslash( $_POST['tooltip'] ) ) : '';
+        $text_color  = isset( $_POST['text_color'] ) ? sanitize_hex_color( wp_unslash( $_POST['text_color'] ) ) : '';
+        $bg_color    = isset( $_POST['bg_color'] ) ? sanitize_hex_color( wp_unslash( $_POST['bg_color'] ) ) : '';
+        $bg_opacity  = isset( $_POST['bg_opacity'] ) ? absint( wp_unslash( $_POST['bg_opacity'] ) ) : $defaults['bg_opacity'];
+        $min_size    = isset( $_POST['min_size'] ) ? absint( wp_unslash( $_POST['min_size'] ) ) : $defaults['min_size'];
+        $alt_suffix  = isset( $_POST['alt_suffix'] ) ? sanitize_text_field( wp_unslash( $_POST['alt_suffix'] ) ) : $defaults['alt_suffix'];
+        $badge_link  = isset( $_POST['badge_link'] ) ? esc_url_raw( wp_unslash( $_POST['badge_link'] ) ) : '';
+        $image_id    = isset( $_POST['image_id'] ) ? absint( wp_unslash( $_POST['image_id'] ) ) : 0;
+        $img_width   = isset( $_POST['image_width'] ) ? absint( wp_unslash( $_POST['image_width'] ) ) : 0;
+        $excludes    = isset( $_POST['exclude_selectors'] ) ? sanitize_textarea_field( wp_unslash( $_POST['exclude_selectors'] ) ) : '';
 
         $settings = array(
-            'enabled'           => isset( $post['enabled'] ) && '1' === $post['enabled'],
-            'badge_type'        => ( isset( $post['badge_type'] ) && 'image' === $post['badge_type'] ) ? 'image' : 'text',
-            'text'              => isset( $post['text'] ) ? sanitize_text_field( wp_unslash( $post['text'] ) ) : $defaults['text'],
-            'tooltip'           => isset( $post['tooltip'] ) ? sanitize_text_field( wp_unslash( $post['tooltip'] ) ) : '',
+            'enabled'           => $enabled,
+            'badge_type'        => ( 'image' === $badge_type ) ? 'image' : 'text',
+            'text'              => $text,
+            'tooltip'           => $tooltip,
             'position'          => in_array( $position, array( 'top-left', 'top-right', 'bottom-left', 'bottom-right' ), true ) ? $position : $defaults['position'],
             'size'              => in_array( $size, array( 'small', 'medium', 'large' ), true ) ? $size : $defaults['size'],
             'text_color'        => $text_color ? $text_color : $defaults['text_color'],
             'bg_color'          => $bg_color ? $bg_color : $defaults['bg_color'],
-            'bg_opacity'        => isset( $post['bg_opacity'] ) ? min( 100, absint( $post['bg_opacity'] ) ) : $defaults['bg_opacity'],
-            'min_size'          => isset( $post['min_size'] ) ? min( 2000, absint( $post['min_size'] ) ) : $defaults['min_size'],
-            'alt_suffix_enable' => isset( $post['alt_suffix_enable'] ) && '1' === $post['alt_suffix_enable'],
-            'alt_suffix'        => isset( $post['alt_suffix'] ) ? sanitize_text_field( wp_unslash( $post['alt_suffix'] ) ) : $defaults['alt_suffix'],
-            'badge_link'        => isset( $post['badge_link'] ) ? esc_url_raw( wp_unslash( $post['badge_link'] ) ) : '',
-            'image_id'          => isset( $post['image_id'] ) ? absint( $post['image_id'] ) : 0,
+            'bg_opacity'        => min( 100, $bg_opacity ),
+            'min_size'          => min( 2000, $min_size ),
+            'alt_suffix_enable' => $alt_enable,
+            'alt_suffix'        => $alt_suffix,
+            'badge_link'        => $badge_link,
+            // Only an existing image attachment can serve as the badge image.
+            'image_id'          => ( $image_id && wp_attachment_is_image( $image_id ) ) ? $image_id : 0,
             'image_width'       => max( 20, min( 1000, $img_width ? $img_width : $defaults['image_width'] ) ),
-            'exclude_selectors' => isset( $post['exclude_selectors'] ) ? sanitize_textarea_field( wp_unslash( $post['exclude_selectors'] ) ) : '',
-            // Tag-stripped, so it can never smuggle markup into the inline <style>.
-            'custom_css'        => isset( $post['custom_css'] ) ? wp_strip_all_tags( wp_unslash( $post['custom_css'] ) ) : '',
+            'exclude_selectors' => $excludes,
         );
 
         update_option( self::OPT_SETTINGS, $settings );
@@ -354,6 +369,7 @@ class Olymp_Tool_AI_Image_Marker implements Olymp_Tool {
             array(
                 self::NOTICE_ACTION => ( self::BULK_MARK === $action ) ? 'mark' : 'unmark',
                 self::NOTICE_COUNT  => $count,
+                self::NOTICE_NONCE  => wp_create_nonce( self::NOTICE_ACTION ),
             ),
             $redirect
         );
@@ -363,13 +379,17 @@ class Olymp_Tool_AI_Image_Marker implements Olymp_Tool {
      * Success notice after a bulk mark/unmark.
      */
     public function bulk_action_notice() {
-        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only feedback args set by our own redirect.
-        if ( ! isset( $_GET[ self::NOTICE_ACTION ], $_GET[ self::NOTICE_COUNT ] ) ) {
+        if ( ! isset( $_GET[ self::NOTICE_NONCE ], $_GET[ self::NOTICE_ACTION ], $_GET[ self::NOTICE_COUNT ] ) ) {
+            return;
+        }
+        if ( ! wp_verify_nonce( sanitize_key( wp_unslash( $_GET[ self::NOTICE_NONCE ] ) ), self::NOTICE_ACTION ) ) {
+            return;
+        }
+        if ( ! current_user_can( 'upload_files' ) ) {
             return;
         }
         $action = sanitize_key( wp_unslash( $_GET[ self::NOTICE_ACTION ] ) );
         $count  = absint( wp_unslash( $_GET[ self::NOTICE_COUNT ] ) );
-        // phpcs:enable WordPress.Security.NonceVerification.Recommended
 
         if ( 'mark' === $action ) {
             /* translators: %s: number of images */
@@ -393,6 +413,7 @@ class Olymp_Tool_AI_Image_Marker implements Olymp_Tool {
     public function removable_query_args( $args ) {
         $args[] = self::NOTICE_ACTION;
         $args[] = self::NOTICE_COUNT;
+        $args[] = self::NOTICE_NONCE;
         return $args;
     }
 
@@ -410,8 +431,7 @@ class Olymp_Tool_AI_Image_Marker implements Olymp_Tool {
             return;
         }
 
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only list filter.
-        $current = isset( $_GET[ self::FILTER_ARG ] ) ? sanitize_text_field( wp_unslash( $_GET[ self::FILTER_ARG ] ) ) : '';
+        $current = $this->current_filter();
         ?>
         <select name="<?php echo esc_attr( self::FILTER_ARG ); ?>">
             <option value=""><?php esc_html_e( 'All images', 'olymp-tools' ); ?></option>
@@ -434,8 +454,7 @@ class Olymp_Tool_AI_Image_Marker implements Olymp_Tool {
             return;
         }
 
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only list filter.
-        $current = isset( $_GET[ self::FILTER_ARG ] ) ? sanitize_text_field( wp_unslash( $_GET[ self::FILTER_ARG ] ) ) : '';
+        $current = $this->current_filter();
 
         if ( '1' === $current ) {
             $query->set( 'meta_query', array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
@@ -452,6 +471,25 @@ class Olymp_Tool_AI_Image_Marker implements Olymp_Tool {
                 ),
             ) );
         }
+    }
+
+    /**
+     * The active filter dropdown value: '1' (marked), '0' (not marked) or ''
+     * (no filter). Anything else is discarded.
+     *
+     * No nonce: this is a read-only view filter of the Media Library list — it
+     * changes no data, like core's own list filters. It also cannot carry one:
+     * upload.php redirects the filter submission to a URL without _wpnonce.
+     *
+     * @return string
+     */
+    private function current_filter() {
+        if ( ! current_user_can( 'upload_files' ) ) {
+            return '';
+        }
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only list filter, see docblock.
+        $value = isset( $_GET[ self::FILTER_ARG ] ) ? sanitize_key( wp_unslash( $_GET[ self::FILTER_ARG ] ) ) : '';
+        return in_array( $value, array( '0', '1' ), true ) ? $value : '';
     }
 
     // ── Labelling settings ────────────────────────────────────────────────────
@@ -482,7 +520,6 @@ class Olymp_Tool_AI_Image_Marker implements Olymp_Tool {
             'image_id'          => 0,                // custom badge image (attachment id)
             'image_width'       => 120,              // rendered badge image width (px)
             'exclude_selectors' => '',               // one CSS selector per line
-            'custom_css'        => '',
         );
     }
 
@@ -527,9 +564,6 @@ class Olymp_Tool_AI_Image_Marker implements Olymp_Tool {
             array(),
             self::VERSION
         );
-        if ( '' !== trim( $settings['custom_css'] ) ) {
-            wp_add_inline_style( self::HANDLE, wp_strip_all_tags( $settings['custom_css'] ) );
-        }
 
         wp_register_script(
             self::HANDLE,

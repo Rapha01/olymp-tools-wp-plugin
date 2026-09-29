@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Olymp Tools
- * Description: Standalone marketing tools — Google Reviews shortcodes, local visitor-location shortcodes, an AI-image disclosure marker and a Complianz-to-Google-Consent-Mode bridge.
- * Version: 1.1.0
+ * Description: Standalone marketing tools — Google Reviews shortcodes, local visitor-location shortcodes and an AI-image disclosure marker.
+ * Version: 1.0.0
  * Requires at least: 5.8
  * Requires PHP: 7.4
  * Author: olympagency
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants
-define( 'OLYMP_TOOLS_VERSION', '1.1.0' );
+define( 'OLYMP_TOOLS_VERSION', '1.0.0' );
 define( 'OLYMP_TOOLS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'OLYMP_TOOLS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'OLYMP_TOOLS_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );

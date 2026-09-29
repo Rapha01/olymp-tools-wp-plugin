@@ -124,8 +124,6 @@ $olymp_tools_shortcodes = array(
                     '<code>' . esc_html( $preview_ip ) . '</code>'
                 );
                 ?>
-                &nbsp;&middot;&nbsp;
-                <?php esc_html_e( 'Append ?test_ip=8.8.8.8 to this page URL to preview another address.', 'olymp-tools' ); ?>
             </span>
         </p>
     <?php else : ?>
@@ -136,12 +134,23 @@ $olymp_tools_shortcodes = array(
                 <?php
                 printf(
                     /* translators: %s: IP address */
-                    esc_html__( 'No public IP to preview (detected: %s). Append ?test_ip=8.8.8.8 to this page URL to preview a specific address.', 'olymp-tools' ),
+                    esc_html__( 'No public IP to preview (detected: %s). Enter a test IP below to preview a specific address.', 'olymp-tools' ),
                     '<code>' . esc_html( $preview_ip ) . '</code>'
                 );
                 ?>
             <?php endif; ?>
         </p>
+    <?php endif; ?>
+
+    <?php if ( $db_exists ) : ?>
+        <form method="get" class="olymp-tools-vloc-test">
+            <input type="hidden" name="page" value="<?php echo esc_attr( $page_slug ); ?>" />
+            <?php wp_nonce_field( Olymp_Tool_Visitor_Location::PREVIEW_NONCE, '_wpnonce', false ); ?>
+            <label for="olymp-tools-vloc-test-ip"><?php esc_html_e( 'Preview another IP address:', 'olymp-tools' ); ?></label>
+            <input type="text" id="olymp-tools-vloc-test-ip" name="test_ip" class="regular-text code"
+                   value="<?php echo esc_attr( $test_ip ); ?>" placeholder="8.8.8.8" />
+            <button type="submit" class="button"><?php esc_html_e( 'Preview', 'olymp-tools' ); ?></button>
+        </form>
     <?php endif; ?>
 
     <h2><?php esc_html_e( 'Shortcodes', 'olymp-tools' ); ?></h2>

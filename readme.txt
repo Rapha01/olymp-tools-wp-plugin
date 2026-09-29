@@ -1,14 +1,14 @@
 === Olymp Tools ===
 Contributors: olympagency
-Tags: google reviews, geolocation, ai disclosure, consent mode, marketing
+Tags: google reviews, geolocation, shortcodes, ai disclosure, marketing
 Requires at least: 5.8
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Standalone marketing tools: Google Reviews shortcodes, GDPR-friendly visitor-location shortcodes, an AI-image disclosure marker and a Complianz-to-Google-Consent-Mode bridge.
+Standalone marketing tools: Google Reviews shortcodes, GDPR-friendly visitor-location shortcodes and an AI-image disclosure marker.
 
 == Description ==
 
@@ -31,41 +31,35 @@ Lookups are 100% local against a DB-IP Lite City database stored on your server 
 **AI-Image Marker** — Mark images as AI-generated and disclose it to visitors with a badge overlaid on every use of the image (transparency obligations such as the EU AI Act):
 
 * Mark images one by one in the attachment details, in bulk in the Media Library list view (with an "AI" column and filter), or automatically on upload.
-* Configurable text or custom-image badge — position, size, colors, tooltip, link, exclusion selectors, custom CSS — with a live preview; optional alt-text disclosure for screen readers.
+* Configurable text or custom-image badge — position, size, colors, tooltip, link, exclusion selectors — with a live preview; optional alt-text disclosure for screen readers.
 
 The mark is stored with the image in the library — never baked into the image file — so the badge is configured once and applies everywhere. Rendering is client-side on the final DOM, so it works with any theme or page builder and behind full-page caching.
 
-**Google Consent Mode** — Pass the consent visitors give in Complianz on to Google Consent Mode v2, for Google Analytics and Google Ads tags delivered through Google Tag Manager:
+== External services ==
 
-* Sends the consent default at the very top of `<head>`, before the GTM container.
-* Applies a returning visitor's stored Complianz choice before any Google tag runs — no race against the load time of the consent banner.
-* Picks up accepting, rejecting and withdrawing consent on the current page immediately.
-* Switches off GTM4WP's own consent default while enabled (GTM4WP 2.0.0 or newer), so it is never sent twice. No consent tags in GTM and no Complianz Script Center entries are needed.
+Olymp Tools connects to two external services, each used by one tool only. Nothing is contacted until you set up and use the tool in question. The AI-Image Marker makes no external connections.
 
-The tool only reads the Complianz consent cookies in the visitor's browser and makes no external connections.
+= Google Places API (Google Reviews tool) =
 
-= Third-Party Services =
+The Google Reviews tool needs this service to show your business's Google rating and review count via the `[olymp_google_reviews_average]` and `[olymp_google_reviews_count]` shortcodes.
 
-Olymp Tools connects to the following external services. Each connection only happens for the tool that uses it, and only once you have configured and used that tool.
-
-**Google Reviews tool**
-
-If you configure the Google Reviews tool, your server (never the browser) requests your business's `rating` and `userRatingCount` from the Google Places API for the Place ID you enter. Your API key is stored on your server and used only for this request.
-
-* **Service provider:** Google LLC — Places API (New)
-* **API endpoint:** [https://places.googleapis.com/v1/places/](https://places.googleapis.com/v1/places/)
-* **Terms of use:** [https://cloud.google.com/maps-platform/terms](https://cloud.google.com/maps-platform/terms)
+* **What is sent:** the Place ID and the Google API key you entered under **Olymp Tools > Google Reviews**, along with the standard data of any HTTP request made by your server (its IP address and the WordPress user agent, which contains your site's URL). The request asks only for the `rating` and `userRatingCount` fields. No data about your visitors is sent.
+* **When:** only from your server, never from the visitor's browser — when you save the tool's settings, and when a page with one of the shortcodes (or the tool's settings page) is displayed and the stored values are older than one week. Otherwise the stored values are served without contacting Google.
+* **Endpoint:** `https://places.googleapis.com/v1/places/{place_id}`
+* **Provider:** Google LLC — Google Maps Platform, Places API (New)
+* **Terms of service:** [https://cloud.google.com/maps-platform/terms](https://cloud.google.com/maps-platform/terms)
 * **Privacy policy:** [https://policies.google.com/privacy](https://policies.google.com/privacy)
 
-**Visitor Location tool**
+= DB-IP (Visitor Location tool) =
 
-If you enable the Visitor Location tool, your server downloads the free DB-IP Lite City database (a data file) and stores it locally. All IP-to-location lookups then happen entirely on your server — no visitor data or IP address is ever sent to DB-IP or any other third party.
+The Visitor Location tool needs the free "IP to City Lite" database from DB-IP to resolve a visitor's city, region and country. The plugin downloads this database file to your server (`wp-content/uploads/olymp-tools/`); all lookups then run locally against that file.
 
-* **Service provider:** DB-IP — "IP Geolocation by DB-IP", licensed CC-BY 4.0
-* **Download endpoint:** [https://download.db-ip.com/free/](https://download.db-ip.com/free/)
-* **Website / terms:** [https://db-ip.com/](https://db-ip.com/)
-
-No data is sent to any of these services except as described above, and only when you configure and use the corresponding tool.
+* **What is sent:** a plain file download request by your server, with the standard data of any HTTP request (your server's IP address and the WordPress user agent, which contains your site's URL). No visitor data and no visitor IP address is ever sent to DB-IP.
+* **When:** the first time a page with a Visitor Location shortcode is viewed and no database is present yet, then about every 30 days to refresh it, and whenever you click **Refresh database now** under **Olymp Tools > Visitor Location**.
+* **Endpoint:** `https://download.db-ip.com/free/dbip-city-lite-{YYYY-MM}.mmdb.gz`
+* **Provider:** DB-IP — "IP Geolocation by DB-IP", database licensed under [Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/) ([license details](https://db-ip.com/db/lite.php))
+* **Terms of service:** [https://db-ip.com/tos.php](https://db-ip.com/tos.php)
+* **Privacy policy:** [https://db-ip.com/privacy.php](https://db-ip.com/privacy.php)
 
 == Installation ==
 
@@ -89,18 +83,14 @@ Yes. Visitor Location resolves the visitor's city/region/country entirely on you
 
 == Changelog ==
 
-= 1.1.0 =
-* New tool: Google Consent Mode. Passes the consent visitors give in Complianz on to Google Consent Mode v2 for Google tags in Google Tag Manager: sends the consent default at the top of `<head>`, applies a returning visitor's stored choice before any Google tag runs, and picks up accepting, rejecting and withdrawing consent on the current page. Switches off GTM4WP's own consent default while enabled (GTM4WP 2.0.0 or newer). Disabled by default.
-
 = 1.0.0 =
 * Olymp Tools extracted from SparkPlus into its own plugin. Includes Google Reviews, Visitor Location and AI-Image Marker, unchanged in behaviour; settings are shared with the previously bundled version.
 * Own text domain `olymp-tools`.
 * Safe side-by-side operation with SparkPlus 1.1.8 and older: the bundled copy is detected and used instead, with an admin notice to update SparkPlus.
+* AI-Image Marker: the free-form "Custom CSS" setting has been removed; style `.olymp-aiimgmark-badge` via "Additional CSS" in the Customizer or Site Editor instead.
+* Visitor Location: test IPs are previewed through a form on the tool's admin page; the `?test_ip=` override on the front end has been removed.
 
 == Upgrade Notice ==
-
-= 1.1.0 =
-Adds the Google Consent Mode tool (disabled by default). Existing tools and settings are unchanged.
 
 = 1.0.0 =
 First standalone release. Coming from SparkPlus's bundled Olymp Tools? Install this plugin and update SparkPlus — your settings are kept.

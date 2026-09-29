@@ -66,9 +66,11 @@ class Olymp_Tool_Google_Reviews implements Olymp_Tool {
         include __DIR__ . '/google-reviews-page.php';
     }
 
-    public function save( $post ) {
-        $api_key  = isset( $post['api_key'] )  ? sanitize_text_field( wp_unslash( $post['api_key'] ) )  : '';
-        $place_id = isset( $post['place_id'] ) ? sanitize_text_field( wp_unslash( $post['place_id'] ) ) : '';
+    public function save() {
+        check_ajax_referer( Olymp_Tools::NONCE, 'nonce' );
+
+        $api_key  = isset( $_POST['api_key'] )  ? sanitize_text_field( wp_unslash( $_POST['api_key'] ) )  : '';
+        $place_id = isset( $_POST['place_id'] ) ? sanitize_text_field( wp_unslash( $_POST['place_id'] ) ) : '';
 
         update_option( self::OPT_API_KEY, $api_key );
         update_option( self::OPT_PLACE_ID, $place_id );

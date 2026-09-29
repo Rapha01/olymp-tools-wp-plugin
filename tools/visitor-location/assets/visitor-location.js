@@ -49,15 +49,6 @@
 
         var url = cfg.ajaxUrl + '?action=' + encodeURIComponent(cfg.action);
 
-        // Dev/test: forward a ?test_ip= override from the current page URL so the
-        // lookup (and the lazy DB download it triggers) can be exercised from a
-        // local environment where the real visitor IP is private. Honored
-        // server-side for logged-in admins only.
-        var testIp = new URLSearchParams(window.location.search).get('test_ip');
-        if (testIp) {
-            url += '&test_ip=' + encodeURIComponent(testIp);
-        }
-
         fetch(url, { credentials: 'same-origin' })
             .then(function (r) { return r.json(); })
             .then(function (resp) {
