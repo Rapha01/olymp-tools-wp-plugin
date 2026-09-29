@@ -239,11 +239,13 @@ function olymp_tools_init() {
     require_once __DIR__ . '/google-reviews/google-reviews.php';
     require_once __DIR__ . '/visitor-location/visitor-location.php';
     require_once __DIR__ . '/ai-image-marker/ai-image-marker.php';
+    require_once __DIR__ . '/google-consent-mode/google-consent-mode.php';
 
     $olymp_tools = new Olymp_Tools();
     $olymp_tools->register( new Olymp_Tool_Google_Reviews() );
     $olymp_tools->register( new Olymp_Tool_Visitor_Location() );
     $olymp_tools->register( new Olymp_Tool_AI_Image_Marker() );
+    $olymp_tools->register( new Olymp_Tool_Google_Consent_Mode() );
     $olymp_tools->init();
 
     return $olymp_tools;

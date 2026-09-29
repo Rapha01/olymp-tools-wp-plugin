@@ -1,14 +1,14 @@
 === Olymp Tools ===
 Contributors: olympagency
-Tags: google reviews, geolocation, shortcodes, ai disclosure, marketing
+Tags: google reviews, geolocation, ai disclosure, consent mode, marketing
 Requires at least: 5.8
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Standalone marketing tools: Google Reviews shortcodes, GDPR-friendly visitor-location shortcodes and an AI-image disclosure marker.
+Standalone marketing tools: Google Reviews shortcodes, GDPR-friendly visitor-location shortcodes, an AI-image disclosure marker and a Complianz-to-Google-Consent-Mode bridge.
 
 == Description ==
 
@@ -34,6 +34,15 @@ Lookups are 100% local against a DB-IP Lite City database stored on your server 
 * Configurable text or custom-image badge — position, size, colors, tooltip, link, exclusion selectors, custom CSS — with a live preview; optional alt-text disclosure for screen readers.
 
 The mark is stored with the image in the library — never baked into the image file — so the badge is configured once and applies everywhere. Rendering is client-side on the final DOM, so it works with any theme or page builder and behind full-page caching.
+
+**Google Consent Mode** — Pass the consent visitors give in Complianz on to Google Consent Mode v2, for Google Analytics and Google Ads tags delivered through Google Tag Manager:
+
+* Sends the consent default at the very top of `<head>`, before the GTM container.
+* Applies a returning visitor's stored Complianz choice before any Google tag runs — no race against the load time of the consent banner.
+* Picks up accepting, rejecting and withdrawing consent on the current page immediately.
+* Switches off GTM4WP's own consent default while enabled (GTM4WP 2.0.0 or newer), so it is never sent twice. No consent tags in GTM and no Complianz Script Center entries are needed.
+
+The tool only reads the Complianz consent cookies in the visitor's browser and makes no external connections.
 
 = Third-Party Services =
 
@@ -80,12 +89,18 @@ Yes. Visitor Location resolves the visitor's city/region/country entirely on you
 
 == Changelog ==
 
+= 1.1.0 =
+* New tool: Google Consent Mode. Passes the consent visitors give in Complianz on to Google Consent Mode v2 for Google tags in Google Tag Manager: sends the consent default at the top of `<head>`, applies a returning visitor's stored choice before any Google tag runs, and picks up accepting, rejecting and withdrawing consent on the current page. Switches off GTM4WP's own consent default while enabled (GTM4WP 2.0.0 or newer). Disabled by default.
+
 = 1.0.0 =
 * Olymp Tools extracted from SparkPlus into its own plugin. Includes Google Reviews, Visitor Location and AI-Image Marker, unchanged in behaviour; settings are shared with the previously bundled version.
 * Own text domain `olymp-tools`.
 * Safe side-by-side operation with SparkPlus 1.1.8 and older: the bundled copy is detected and used instead, with an admin notice to update SparkPlus.
 
 == Upgrade Notice ==
+
+= 1.1.0 =
+Adds the Google Consent Mode tool (disabled by default). Existing tools and settings are unchanged.
 
 = 1.0.0 =
 First standalone release. Coming from SparkPlus's bundled Olymp Tools? Install this plugin and update SparkPlus — your settings are kept.
